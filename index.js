@@ -41,7 +41,7 @@ const client = new Client({
   ],
 });
 
-client.once("clientReady", async () => {
+client.once("ready", async () => {
   console.log(`✅ Bot started at ${new Date().toLocaleString()}`);
 
   const guild = await client.guilds.fetch(GUILD_ID);
