@@ -25,7 +25,7 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           GUILD_ID: ${{ secrets.GUILD_ID }}
           PROJECT_MGMT_CHANNEL_ID: ${{ secrets.PROJECT_MGMT_CHANNEL_ID }}
-          STAFF_ROLE_ID: ${{ secrets.STAFF_ROLE_ID }}
+          MANAGER_ROLE_ID: ${{ secrets.MANAGER_ROLE_ID }}
         run: node index.js
         
       - name: Commit updated db.json

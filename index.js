@@ -8,7 +8,7 @@ const {
   DISCORD_TOKEN,
   GUILD_ID,
   PROJECT_MGMT_CHANNEL_ID,
-  STAFF_ROLE_ID,
+  MANAGER_ROLE_ID,
 } = process.env;
 
 // JSON file to track which messages have been alerted
@@ -47,7 +47,7 @@ async function fetchRecentMessages(channel) {
     if (lastId) options.before = lastId;
 
     const batch = await channel.messages.fetch(options);
-    
+
     for (const msg of batch.values()) {
       // Stop if we've gone past the time window
       if (msg.createdTimestamp < cutoffTime) {
@@ -58,9 +58,9 @@ async function fetchRecentMessages(channel) {
 
     // No more messages to fetch
     if (batch.size < 100) break;
-    
+
     lastId = batch.last().id;
-    
+
     // If the last message is older than our cutoff, stop
     if (batch.last().createdTimestamp < cutoffTime) break;
   }
@@ -73,10 +73,10 @@ client.once("ready", async () => {
 
   try {
     const guild = await client.guilds.fetch(GUILD_ID);
-    
+
     // Get all roles ending with -ext (client roles)
     const clientRoles = guild.roles.cache.filter(role => role.name.endsWith("-ext"));
-    
+
     if (clientRoles.size === 0) {
       console.log("⚠️  No client roles found ending with '-ext'");
       saveDB(db);
@@ -97,7 +97,7 @@ client.once("ready", async () => {
     for (const [channelId, channel] of textChannels) {
       try {
         console.log(`🔍 Checking #${channel.name}...`);
-        
+
         // Fetch messages from the last 3 hours
         const allMessages = await fetchRecentMessages(channel);
         console.log(`   Found ${allMessages.length} messages in last 3 hours`);
@@ -119,7 +119,7 @@ client.once("ready", async () => {
           }
 
           // Check if message author has a client role (ends with -ext)
-          const hasClientRole = member?.roles.cache.some(role => 
+          const hasClientRole = member?.roles.cache.some(role =>
             role.name.endsWith("-ext")
           );
 
@@ -129,7 +129,7 @@ client.once("ready", async () => {
           const hasStaffReply = allMessages.some(replyMsg => {
             // Must be in the same channel
             if (replyMsg.channelId !== msg.channelId) return false;
-            
+
             // Must be after the client message
             if (replyMsg.createdTimestamp <= msg.createdTimestamp) return false;
 
@@ -138,7 +138,7 @@ client.once("ready", async () => {
 
             // Check if replier is staff
             const replyMember = replyMsg.member || guild.members.cache.get(replyMsg.author.id);
-            return replyMember?.roles.cache.has(STAFF_ROLE_ID);
+            return replyMember?.roles.cache.has(MANAGER_ROLE_ID);
           });
 
           // Check if any staff member reacted to this message
@@ -150,11 +150,11 @@ client.once("ready", async () => {
                 const users = await reaction.users.fetch();
                 for (const [userId, user] of users) {
                   if (user.bot) continue;
-                  
+
                   // Fetch member to ensure we have the latest role data
                   try {
                     const reactionMember = await guild.members.fetch(userId);
-                    if (reactionMember?.roles.cache.has(STAFF_ROLE_ID)) {
+                    if (reactionMember?.roles.cache.has(MANAGER_ROLE_ID)) {
                       console.log(`   ✓ Staff reaction found: ${emoji} by ${user.username}`);
                       return true; // Staff reacted to this message
                     }
@@ -210,9 +210,9 @@ client.once("ready", async () => {
       db.alertedMessages = db.alertedMessages.filter(id => !answeredMessageIds.includes(id));
       console.log(`✅ Removed ${answeredMessageIds.length} answered message(s) from tracking`);
     }
-    
+
     const stillUnanswered = db.alertedMessages.length;
-    
+
     console.log(`\n📊 Summary:`);
     console.log(`   - New unanswered messages: ${unansweredMessages.length}`);
     console.log(`   - Still unanswered (previously alerted): ${stillUnanswered}`);
@@ -221,7 +221,7 @@ client.once("ready", async () => {
     if (unansweredMessages.length > 0) {
       try {
         const pmChannel = await client.channels.fetch(PROJECT_MGMT_CHANNEL_ID);
-        
+
         // Group alerts (max 5 per message to avoid Discord limits)
         const alertBatches = [];
         for (let i = 0; i < unansweredMessages.length; i += 5) {
@@ -229,19 +229,19 @@ client.once("ready", async () => {
         }
 
         for (const batch of alertBatches) {
-          const alertText = batch.map(m => 
+          const alertText = batch.map(m =>
             `**Unanswered**: Message from **${m.authorName}** in <#${m.channelId}> channel. \n[Jump to message](${m.messageUrl})`
           ).join('\n\n');
 
-          await pmChannel.send(`<@&${STAFF_ROLE_ID}>\n${alertText}`);
-          
+          await pmChannel.send(`<@&${MANAGER_ROLE_ID}>\n${alertText}`);
+
           // Mark these messages as alerted
           batch.forEach(m => db.alertedMessages.push(m.messageId));
-          
+
           // Small delay between batches
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
-        
+
         console.log(`✅ Sent ${unansweredMessages.length} new alert(s)`);
       } catch (error) {
         console.error(`❌ Error sending alerts:`, error.message);
@@ -253,7 +253,7 @@ client.once("ready", async () => {
     // Save database
     saveDB(db);
     console.log("💾 Database saved");
-    
+
     console.log("👋 Bot finished - shutting down");
     client.destroy();
     process.exit(0);
