@@ -1,0 +1,37 @@
+name: Discord Message Monitor
+on:
+  schedule:
+    # Runs at 8AM, 10AM, 12PM, 2PM, 4PM, 6PM, 8PM LK time (UTC+5:30)
+    # Cron is in UTC, so subtract 5.5 hours from LK time
+    - cron: "30 2,4,6,8,10,12,14 * * *"  # 8AM, 10AM, 12PM, 2PM, 4PM, 6PM, 8PM LK
+  workflow_dispatch:
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install dependencies
+        run: npm install discord.js dotenv
+        
+      - name: Run Discord alert bot
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          GUILD_ID: ${{ secrets.GUILD_ID }}
+          PROJECT_MGMT_CHANNEL_ID: ${{ secrets.PROJECT_MGMT_CHANNEL_ID }}
+          STAFF_ROLE_ID: ${{ secrets.STAFF_ROLE_ID }}
+        run: node index.js
+        
+      - name: Commit updated db.json
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add db.json
+          git diff --staged --quiet || git commit -m "Update db.json [skip ci]"
+          git push
