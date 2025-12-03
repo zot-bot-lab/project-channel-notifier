@@ -75,6 +75,10 @@ client.once("ready", async () => {
   try {
     const guild = await client.guilds.fetch(GUILD_ID);
 
+    // Fetch all channels to ensure cache is populated
+    await guild.channels.fetch();
+    console.log(`📡 Fetched ${guild.channels.cache.size} channel(s) from server`);
+
     // Get all roles ending with -ext (client roles)
     const clientRoles = guild.roles.cache.filter(role => role.name.endsWith("-ext"));
 
