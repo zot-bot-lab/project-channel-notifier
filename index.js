@@ -92,11 +92,34 @@ client.once("ready", async () => {
 
     console.log(`📋 Found ${clientRoles.size} client role(s)`);
 
+    // Debug: Check if PROJECT_CATEGORY_ID is set
+    if (!PROJECT_CATEGORY_ID) {
+      console.log("❌ PROJECT_CATEGORY_ID is not set in environment variables");
+      saveDB(db);
+      client.destroy();
+      process.exit(1);
+      return;
+    }
+
+    console.log(`🔍 Looking for category with ID: ${PROJECT_CATEGORY_ID}`);
+
     // Find the 'Project Channels' category by ID
     const projectCategory = guild.channels.cache.get(PROJECT_CATEGORY_ID);
 
-    if (!projectCategory || projectCategory.type !== 4) {
-      console.log("⚠️  'Project Channels' category not found or invalid ID");
+    if (!projectCategory) {
+      console.log("❌ Category not found in cache");
+      console.log("📋 Available categories:");
+      guild.channels.cache
+        .filter(ch => ch.type === 4)
+        .forEach(cat => console.log(`   - ${cat.name} (ID: ${cat.id})`));
+      saveDB(db);
+      client.destroy();
+      process.exit(0);
+      return;
+    }
+
+    if (projectCategory.type !== 4) {
+      console.log(`❌ Channel found but it's not a category (type: ${projectCategory.type})`);
       saveDB(db);
       client.destroy();
       process.exit(0);
