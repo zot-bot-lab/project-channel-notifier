@@ -9,6 +9,7 @@ const {
   GUILD_ID,
   PROJECT_MGMT_CHANNEL_ID,
   MANAGER_ROLE_ID,
+  PROJECT_CHANNELS_CATEGORY_ID,
 } = process.env;
 
 // JSON file to track which messages have been alerted
@@ -87,9 +88,20 @@ client.once("ready", async () => {
 
     console.log(`📋 Found ${clientRoles.size} client role(s)`);
 
-    // Get all text channels
-    const textChannels = guild.channels.cache.filter(ch => ch.isTextBased());
-    console.log(`📁 Scanning ${textChannels.size} text channel(s)...`);
+    // Get all text channels in the 'Project Channels' category
+    const textChannels = guild.channels.cache.filter(ch =>
+      ch.isTextBased() && ch.parentId === PROJECT_CHANNELS_CATEGORY_ID
+    );
+
+    if (textChannels.size === 0) {
+      console.log("⚠️  No channels found in the 'Project Channels' category");
+      saveDB(db);
+      client.destroy();
+      process.exit(0);
+      return;
+    }
+
+    console.log(`📁 Scanning ${textChannels.size} text channel(s) in 'Project Channels' category...`);
 
     const unansweredMessages = [];
     const answeredMessageIds = []; // Track messages that got answered
