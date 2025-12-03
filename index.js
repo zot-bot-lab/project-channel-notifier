@@ -9,7 +9,6 @@ const {
   GUILD_ID,
   PROJECT_MGMT_CHANNEL_ID,
   MANAGER_ROLE_ID,
-  PROJECT_CATEGORY_ID,
 } = process.env;
 
 // JSON file to track which messages have been alerted
@@ -75,10 +74,6 @@ client.once("ready", async () => {
   try {
     const guild = await client.guilds.fetch(GUILD_ID);
 
-    // Fetch all channels to ensure cache is populated
-    await guild.channels.fetch();
-    console.log(`📡 Fetched ${guild.channels.cache.size} channel(s) from server`);
-
     // Get all roles ending with -ext (client roles)
     const clientRoles = guild.roles.cache.filter(role => role.name.endsWith("-ext"));
 
@@ -92,47 +87,9 @@ client.once("ready", async () => {
 
     console.log(`📋 Found ${clientRoles.size} client role(s)`);
 
-    // Debug: Check if PROJECT_CATEGORY_ID is set
-    if (!PROJECT_CATEGORY_ID) {
-      console.log("❌ PROJECT_CATEGORY_ID is not set in environment variables");
-      saveDB(db);
-      client.destroy();
-      process.exit(1);
-      return;
-    }
-
-    console.log(`🔍 Looking for category with ID: ${PROJECT_CATEGORY_ID}`);
-
-    // Find the 'Project Channels' category by ID
-    const projectCategory = guild.channels.cache.get(PROJECT_CATEGORY_ID);
-
-    if (!projectCategory) {
-      console.log("❌ Category not found in cache");
-      console.log("📋 Available categories:");
-      guild.channels.cache
-        .filter(ch => ch.type === 4)
-        .forEach(cat => console.log(`   - ${cat.name} (ID: ${cat.id})`));
-      saveDB(db);
-      client.destroy();
-      process.exit(0);
-      return;
-    }
-
-    if (projectCategory.type !== 4) {
-      console.log(`❌ Channel found but it's not a category (type: ${projectCategory.type})`);
-      saveDB(db);
-      client.destroy();
-      process.exit(0);
-      return;
-    }
-
-    console.log(`📂 Found category: ${projectCategory.name}`);
-
-    // Get all text channels in the 'Project Channels' category
-    const textChannels = guild.channels.cache.filter(
-      ch => ch.isTextBased() && ch.parentId === projectCategory.id
-    );
-    console.log(`📁 Scanning ${textChannels.size} text channel(s) in '${projectCategory.name}' category...`);
+    // Get all text channels
+    const textChannels = guild.channels.cache.filter(ch => ch.isTextBased());
+    console.log(`📁 Scanning ${textChannels.size} text channel(s)...`);
 
     const unansweredMessages = [];
     const answeredMessageIds = []; // Track messages that got answered
