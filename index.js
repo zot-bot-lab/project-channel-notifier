@@ -87,8 +87,20 @@ client.once("ready", async () => {
 
     console.log(`📋 Found ${clientRoles.size} client role(s)`);
 
+    const { PROJECT_CATEGORY_ID } = process.env; // Optional: If not provided, defaults to checking name "Project Channels"
+
     // Get all text channels
-    const textChannels = guild.channels.cache.filter(ch => ch.isTextBased());
+    const textChannels = guild.channels.cache.filter(ch => {
+      if (!ch.isTextBased()) return false;
+
+      // Filter by Category
+      if (PROJECT_CATEGORY_ID) {
+        return ch.parentId === PROJECT_CATEGORY_ID;
+      } else {
+        // Fallback: Check if category name is "Project Channels"
+        return ch.parent?.name === "Project Channels";
+      }
+    });
     console.log(`📁 Scanning ${textChannels.size} text channel(s)...`);
 
     const unansweredMessages = [];
