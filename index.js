@@ -126,20 +126,36 @@ client.once("ready", async () => {
           if (!hasClientRole) continue;
 
           // Check if any staff member replied AFTER this message in the same channel
-          const hasStaffReply = allMessages.some(replyMsg => {
+          let hasStaffReply = false;
+
+          for (const replyMsg of allMessages) {
             // Must be in the same channel
-            if (replyMsg.channelId !== msg.channelId) return false;
+            if (replyMsg.channelId !== msg.channelId) continue;
 
             // Must be after the client message
-            if (replyMsg.createdTimestamp <= msg.createdTimestamp) return false;
+            if (replyMsg.createdTimestamp <= msg.createdTimestamp) continue;
 
             // Skip bot messages
-            if (replyMsg.author.bot) return false;
+            if (replyMsg.author.bot) continue;
 
             // Check if replier is staff
-            const replyMember = replyMsg.member || guild.members.cache.get(replyMsg.author.id);
-            return replyMember?.roles.cache.has(MANAGER_ROLE_ID);
-          });
+            let replyMember = replyMsg.member;
+
+            // If member is not cached, fetch it
+            if (!replyMember) {
+              try {
+                replyMember = await guild.members.fetch(replyMsg.author.id);
+              } catch (e) {
+                // User might have left
+                continue;
+              }
+            }
+
+            if (replyMember && replyMember.roles.cache.has(MANAGER_ROLE_ID)) {
+              hasStaffReply = true;
+              break; // Found a staff reply, no need to check further
+            }
+          }
 
           // Check if any staff member reacted to this message
           const hasStaffReaction = await (async () => {
@@ -222,27 +238,49 @@ client.once("ready", async () => {
       try {
         const pmChannel = await client.channels.fetch(PROJECT_MGMT_CHANNEL_ID);
 
-        // Group alerts (max 5 per message to avoid Discord limits)
-        const alertBatches = [];
-        for (let i = 0; i < unansweredMessages.length; i += 5) {
-          alertBatches.push(unansweredMessages.slice(i, i + 5));
+        // Group messages by Channel -> Author
+        const grouped = {};
+        for (const msg of unansweredMessages) {
+          if (!grouped[msg.channelId]) {
+            grouped[msg.channelId] = {};
+            grouped[msg.channelId].channelName = msg.channelName;
+            grouped[msg.channelId].authors = {};
+          }
+          if (!grouped[msg.channelId].authors[msg.authorId]) {
+            grouped[msg.channelId].authors[msg.authorId] = {
+              name: msg.authorName,
+              messages: []
+            };
+          }
+          grouped[msg.channelId].authors[msg.authorId].messages.push(msg);
         }
 
-        for (const batch of alertBatches) {
-          const alertText = batch.map(m =>
-            `**Unanswered**: Message from **${m.authorName}** in <#${m.channelId}> channel. \n[Jump to message](${m.messageUrl})`
-          ).join('\n\n');
+        // Generate alerts per channel
+        for (const [channelId, channelData] of Object.entries(grouped)) {
+          let alertContent = `<@&${MANAGER_ROLE_ID}>\n**Unanswered Messages in <#${channelId}>**\n`;
+          const alertMessageIds = [];
 
-          await pmChannel.send(`<@&${MANAGER_ROLE_ID}>\n${alertText}`);
+          for (const [authorId, authorData] of Object.entries(channelData.authors)) {
+            const count = authorData.messages.length;
+            const oldestMsg = authorData.messages[0]; // Messages are already sorted
+            const plural = count > 1 ? "s" : "";
 
-          // Mark these messages as alerted
-          batch.forEach(m => db.alertedMessages.push(m.messageId));
+            alertContent += `• **${authorData.name}**: ${count} message${plural} ([Jump to oldest](${oldestMsg.messageUrl}))\n`;
 
-          // Small delay between batches
+            // Add all IDs to our tracking list
+            authorData.messages.forEach(m => alertMessageIds.push(m.messageId));
+          }
+
+          await pmChannel.send(alertContent);
+
+          // Mark these messages as alerted in DB
+          alertMessageIds.forEach(id => db.alertedMessages.push(id));
+
+          // Small delay between channel alerts
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
-        console.log(`✅ Sent ${unansweredMessages.length} new alert(s)`);
+        console.log(`✅ Sent alerts for ${unansweredMessages.length} messages`);
       } catch (error) {
         console.error(`❌ Error sending alerts:`, error.message);
       }
