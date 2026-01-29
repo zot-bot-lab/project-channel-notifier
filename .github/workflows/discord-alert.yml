@@ -1,9 +1,8 @@
 name: Discord Message Monitor
 on:
   schedule:
-    # Runs at 8AM, 10AM, 12PM, 2PM, 4PM, 6PM, 8PM LK time (UTC+5:30)
-    # Cron is in UTC, so subtract 5.5 hours from LK time
-    - cron: "30 2,4,6,8,10,12,14 * * *"  # 8AM, 10AM, 12PM, 2PM, 4PM, 6PM, 8PM LK
+    # Runs every hour
+    - cron: "0 * * * *"  # Every hour at :00
   workflow_dispatch:
 
 jobs:

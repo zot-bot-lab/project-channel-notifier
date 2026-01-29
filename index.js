@@ -35,10 +35,10 @@ const client = new Client({
   ],
 });
 
-// Fetch messages from the last 3 hours (1 hour buffer for safety)
+// Fetch messages from the last 2 hours (1 hour buffer for safety)
 async function fetchRecentMessages(channel) {
   const messages = [];
-  const timeWindow = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
+  const timeWindow = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
   const cutoffTime = Date.now() - timeWindow;
   let lastId;
 
@@ -110,9 +110,9 @@ client.once("ready", async () => {
       try {
         console.log(`🔍 Checking #${channel.name}...`);
 
-        // Fetch messages from the last 3 hours
+        // Fetch messages from the last 2 hours
         const allMessages = await fetchRecentMessages(channel);
-        console.log(`   Found ${allMessages.length} messages in last 3 hours`);
+        console.log(`   Found ${allMessages.length} messages in last 2 hours`);
 
         // Sort messages by timestamp (oldest first)
         allMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
